@@ -30,8 +30,7 @@ def handle_connections(inputs: List[socket.socket], outputs: List[socket.socket]
     :return: None
     """
     while inputs:
-        readable_sockets, writable_sockets, excepted_sockets = \
-            select.select(inputs, outputs, inputs, CLIENT_TIMEOUT_TIME)
+        readable_sockets, writable_sockets, excepted_sockets = select.select(inputs, outputs, inputs)
         for readable_sock in readable_sockets:
             if readable_sock is server_sock:
                 client_sock, client_addr = readable_sock.accept()
@@ -41,19 +40,15 @@ def handle_connections(inputs: List[socket.socket], outputs: List[socket.socket]
             else:
                 client_msg = readable_sock.recv(MAX_MESSAGE_LEN).decode()
                 logging.info(f"Got \"{client_msg}\" from {readable_sock.getpeername()}")
-                inputs.remove(readable_sock)
-                if client_msg == PING_MSG and readable_sock not in outputs:
-                    outputs.append(readable_sock)
-                else:
+                if client_msg != PING_MSG:
                     excepted_sockets.append(readable_sock)
+                elif readable_sock not in outputs:
+                    outputs.append(readable_sock)
 
         for writable_sock in writable_sockets:
             writable_sock.send(PONG_MSG.encode())
             logging.info(f"Sent \"{PONG_MSG}\" to client in address {writable_sock.getpeername()}.")
             outputs.remove(writable_sock)
-            if writable_sock in inputs:
-                inputs.remove(writable_sock)
-            excepted_sockets.append(writable_sock)
 
         for excepted_sock in excepted_sockets:
             if excepted_sock is not server_sock:
